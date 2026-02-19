@@ -1,0 +1,120 @@
+/* Styles for AtLine AI plugin */
+
+/* Settings Page Styles */
+.atline-ai-agents-section,
+.atline-ai-general-section {
+    margin-bottom: 2em;
+}
+
+.atline-ai-agent-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 0.75em;
+    transition: all 0.2s ease;
+}
+
+.atline-ai-agent-card.atline-ai-agent-expanded {
+    border-color: var(--interactive-accent);
+}
+
+.atline-ai-agent-header-clickable {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1em 1.25em;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.atline-ai-agent-header-clickable:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atline-ai-agent-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+}
+
+.atline-ai-expand-icon {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    transition: transform 0.2s ease;
+}
+
+.atline-ai-agent-content {
+    padding: 1em 1.25em 1em 1.25em;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.atline-ai-agent-alias {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.atline-ai-provider-badge {
+    display: inline-block;
+    padding: 0.25em 0.75em;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.atline-ai-provider-claude {
+    background: rgba(255, 140, 100, 0.15);
+    color: #ff8c64;
+    border: 1px solid rgba(255, 140, 100, 0.3);
+}
+
+.atline-ai-provider-gemini {
+    background: rgba(66, 133, 244, 0.15);
+    color: #4285f4;
+    border: 1px solid rgba(66, 133, 244, 0.3);
+}
+
+.atline-ai-provider-ollama {
+    background: rgba(160, 130, 109, 0.15);
+    color: #8B7355;
+    border: 1px solid rgba(160, 130, 109, 0.3);
+}
+
+.atline-ai-provider-codex {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.atline-ai-system-prompt {
+    width: 100% !important;
+    min-height: 120px !important;
+    font-family: var(--font-monospace) !important;
+    font-size: 0.9em !important;
+}
+
+/* Response Style Preview */
+.response-style-preview {
+    margin-top: 1em;
+    padding: 1em;
+    background: var(--background-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.response-style-preview-label {
+    font-weight: 600;
+    margin-bottom: 0.75em;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.response-style-preview-sample {
+    background: var(--background-primary);
+    padding: 0.75em;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
