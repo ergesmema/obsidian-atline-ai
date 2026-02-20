@@ -382,12 +382,15 @@ function createAgentAutocomplete(agentsRef) {
 
 				return {
 					from: word.from,
-					options: matchingAgents.map(agent => ({
-						label: `@${agent.alias}`,
-						type: 'keyword',
-						apply: `@${agent.alias} `,
-						detail: agent.provider
-					}))
+					options: matchingAgents.map(agent => {
+						const emoji = agent.connectionMode === 'api' ? '🔑' : '💻';
+						return {
+							label: `${emoji} @${agent.alias}`,
+							type: 'keyword',
+							apply: `@${agent.alias} `,
+							detail: agent.provider
+						};
+					})
 				};
 			}
 		]
