@@ -570,7 +570,6 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		this.addCommand({
 			id: 'run-atline-ai',
 			name: 'Run AI agent on current line',
-			hotkeys: [{ modifiers: ['Mod'], key: 'Enter' }], // Default: Cmd+Enter (Mac) / Ctrl+Enter (Windows/Linux)
 			editorCallback: async (editor, view) => {
 				const cursor = editor.getCursor();
 
@@ -696,7 +695,6 @@ module.exports = class AtLineAIPlugin extends Plugin {
 				if (detectedPath) {
 					this.settings[setting] = detectedPath;
 					updated = true;
-					console.log(`AtLine AI: Auto-detected ${command} at ${detectedPath}`);
 				}
 			}
 		}
@@ -2430,6 +2428,8 @@ module.exports = class AtLineAIPlugin extends Plugin {
 	}
 
 	onunload() {
+		const styleEl = document.getElementById('atline-ai-loading-styles');
+		if (styleEl) styleEl.remove();
 	}
 };
 
@@ -2444,12 +2444,6 @@ class AtLineAISettingTab extends PluginSettingTab {
 	display() {
 		const { containerEl } = this;
 		containerEl.empty();
-
-		// Main title
-		containerEl.createEl('h1', {
-			text: 'AtLine AI',
-			attr: { style: 'margin-bottom: 0.5em; font-size: 1.5em;' }
-		});
 
 		// ─────────────────────────────────────────────────────────────
 		// AI Agents
@@ -2485,7 +2479,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 			// Check if this agent should be expanded (persisted across re-renders)
 			const shouldBeExpanded = this.expandedAgents.has(agent.alias);
 			content.style.display = shouldBeExpanded ? 'block' : 'none';
-			expandIcon.innerHTML = shouldBeExpanded ? '▲' : '▼';
+			expandIcon.textContent = shouldBeExpanded ? '▲' : '▼';
 			if (shouldBeExpanded) {
 				agentCard.addClass('atline-ai-agent-expanded');
 			}
@@ -2494,7 +2488,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 			header.addEventListener('click', () => {
 				const isExpanded = content.style.display !== 'none';
 				content.style.display = isExpanded ? 'none' : 'block';
-				expandIcon.innerHTML = isExpanded ? '▼' : '▲';
+				expandIcon.textContent = isExpanded ? '▼' : '▲';
 				agentCard.toggleClass('atline-ai-agent-expanded', !isExpanded);
 				// Track expanded state
 				if (isExpanded) {
@@ -2566,7 +2560,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 			// Connection Mode setting (only for Claude provider)
 			if (agent.provider === 'claude') {
 				const connectionModeSetting = new Setting(content)
-					.setName('Connection Mode')
+					.setName('Connection mode')
 					.setDesc('CLI requires Claude CLI installed. API requires API key configured in API Keys section.')
 					.addDropdown(dropdown => dropdown
 						.addOption('cli', 'CLI (Claude Code)')
@@ -2585,14 +2579,16 @@ class AtLineAISettingTab extends PluginSettingTab {
 						cls: 'setting-item-description',
 						attr: { style: 'color: var(--text-warning); margin-top: -10px; margin-bottom: 10px; padding-left: 18px;' }
 					});
-					warningEl.innerHTML = '⚠️ API key not configured. Add your Anthropic API key in the <strong>API Keys</strong> section below.';
+					warningEl.appendText('⚠️ API key not configured. Add your Anthropic API key in the ');
+				warningEl.createEl('strong', { text: 'API Keys' });
+				warningEl.appendText(' section below.');
 				}
 			}
 
 			// Connection Mode setting (only for OpenAI provider)
 			if (agent.provider === 'codex') {
 				const connectionModeSetting = new Setting(content)
-					.setName('Connection Mode')
+					.setName('Connection mode')
 					.setDesc('CLI requires Codex CLI installed. API requires OpenAI API key in API Keys section.')
 					.addDropdown(dropdown => dropdown
 						.addOption('cli', 'CLI (Codex)')
@@ -2611,14 +2607,16 @@ class AtLineAISettingTab extends PluginSettingTab {
 						cls: 'setting-item-description',
 						attr: { style: 'color: var(--text-warning); margin-top: -10px; margin-bottom: 10px; padding-left: 18px;' }
 					});
-					warningEl.innerHTML = '⚠️ API key not configured. Add your OpenAI API key in the <strong>API Keys</strong> section below.';
+					warningEl.appendText('⚠️ API key not configured. Add your OpenAI API key in the ');
+				warningEl.createEl('strong', { text: 'API Keys' });
+				warningEl.appendText(' section below.');
 				}
 			}
 
 			// Connection Mode setting (only for Gemini provider)
 			if (agent.provider === 'gemini') {
 				const connectionModeSetting = new Setting(content)
-					.setName('Connection Mode')
+					.setName('Connection mode')
 					.setDesc('CLI requires Gemini CLI installed. API requires Google AI API key configured in API Keys section.')
 					.addDropdown(dropdown => dropdown
 						.addOption('cli', 'CLI (Gemini)')
@@ -2637,7 +2635,9 @@ class AtLineAISettingTab extends PluginSettingTab {
 						cls: 'setting-item-description',
 						attr: { style: 'color: var(--text-warning); margin-top: -10px; margin-bottom: 10px; padding-left: 18px;' }
 					});
-					warningEl.innerHTML = '⚠️ API key not configured. Add your Google AI API key in the <strong>API Keys</strong> section below.';
+					warningEl.appendText('⚠️ API key not configured. Add your Google AI API key in the ');
+				warningEl.createEl('strong', { text: 'API Keys' });
+				warningEl.appendText(' section below.');
 				}
 			}
 
@@ -2670,7 +2670,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 			// Plot Library setting (only for @plot agent)
 			if (agent.alias === 'plot') {
 				new Setting(content)
-					.setName('Plot Library')
+					.setName('Plot library')
 					.setDesc('Choose which plotting plugin to generate code for. You must install the corresponding Obsidian plugin.')
 					.addDropdown(dropdown => dropdown
 						.addOption('charts', 'Charts (Chart.js)')
@@ -2690,14 +2690,16 @@ class AtLineAISettingTab extends PluginSettingTab {
 					cls: 'setting-item-description',
 					attr: { style: 'margin-top: -10px; margin-bottom: 10px; padding-left: 18px; color: var(--text-accent);' }
 				});
-				noticeEl.innerHTML = `⚠️ Requires <strong>${requiredPlugin}</strong> plugin to be installed in Obsidian.`;
+				noticeEl.appendText('⚠️ Requires ');
+			noticeEl.createEl('strong', { text: requiredPlugin });
+			noticeEl.appendText(' plugin to be installed in Obsidian.');
 			}
 
 			// System Prompt setting (optimized: no re-render on change)
 			// For @plot, show that prompt is auto-generated
 			const isPlotAgent = agent.alias === 'plot';
 			new Setting(content)
-				.setName('System Prompt')
+				.setName('System prompt')
 				.setDesc(isPlotAgent ? 'Auto-generated based on Plot Library selection. You can override it here.' : 'Custom instructions for this agent')
 				.addTextArea(text => {
 					text.inputEl.classList.add('atline-ai-system-prompt');
@@ -2716,7 +2718,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 			// Include All Wikilinks toggle
 			new Setting(content)
-				.setName('Include All Wikilinks')
+				.setName('Include all wikilinks')
 				.setDesc('Pass all [[wikilinks]] from the current file to the AI (not just from the query). Useful when you have reference files at the top of your note.')
 				.addToggle(toggle => toggle
 					.setValue(agent.includeAllWikilinks ?? false)
@@ -2727,7 +2729,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 			// Delete Query After Response toggle
 			new Setting(content)
-				.setName('Delete Query After Response')
+				.setName('Delete query after response')
 				.setDesc('Automatically remove the @agent query line after the AI response is shown.')
 				.addToggle(toggle => toggle
 					.setValue(agent.deleteQueryAfterResponse ?? false)
@@ -2738,7 +2740,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 			// Timeout override
 			new Setting(content)
-				.setName('Timeout Override')
+				.setName('Timeout override')
 				.setDesc('Override global timeout for this agent (in milliseconds). Leave empty to use global setting.')
 				.addText(text => text
 					.setPlaceholder('Use global setting')
@@ -2757,7 +2759,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 			// Response Style override
 			new Setting(content)
-				.setName('Response Style Override')
+				.setName('Response style override')
 				.setDesc('Override global response style for this agent. Leave as "Use global" to use global setting.')
 				.addDropdown(dropdown => dropdown
 					.addOption('', 'Use global setting')
@@ -2774,7 +2776,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 			// Test Connection button
 			new Setting(content)
-				.setName('Test Connection')
+				.setName('Test connection')
 				.setDesc('Verify this agent is configured correctly and can connect')
 				.addButton(button => button
 					.setButtonText('Test')
@@ -2796,7 +2798,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// Add new agent button
 		new Setting(agentsSection)
-			.setName('Add New Agent')
+			.setName('Add new agent')
 			.setDesc('Create a new AI agent with custom configuration')
 			.addButton(button => button
 				.setButtonText('+ Add Agent')
@@ -2831,7 +2833,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 		});
 
 		new Setting(generalSection)
-			.setName('Response Style')
+			.setName('Response style')
 			.setDesc('How AI responses appear in your notes')
 			.addDropdown(dropdown => dropdown
 				.addOption('blockquote', 'Blockquote (> prefix)')
@@ -2859,7 +2861,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// Custom format editor
 		new Setting(customFormatContainer)
-			.setName('Custom Format')
+			.setName('Custom format')
 			.setDesc('Use {response} as placeholder for AI output. Use {response_blockquote} for blockquote-formatted output.')
 			.addTextArea(text => {
 				text.inputEl.style.width = '100%';
@@ -2923,14 +2925,14 @@ class AtLineAISettingTab extends PluginSettingTab {
 		const ollamaTitleDiv = ollamaHeader.createDiv('atline-ai-agent-title');
 		ollamaTitleDiv.createEl('span', { text: 'Ollama Settings', cls: 'atline-ai-agent-alias' });
 		const ollamaExpandIcon = ollamaHeader.createDiv('atline-ai-expand-icon');
-		ollamaExpandIcon.innerHTML = '▼';
+		ollamaExpandIcon.textContent = '▼';
 		const ollamaContent = ollamaCard.createDiv('atline-ai-agent-content');
 		ollamaContent.style.display = 'none';
 
 		ollamaHeader.addEventListener('click', () => {
 			const isExpanded = ollamaContent.style.display !== 'none';
 			ollamaContent.style.display = isExpanded ? 'none' : 'block';
-			ollamaExpandIcon.innerHTML = isExpanded ? '▼' : '▲';
+			ollamaExpandIcon.textContent = isExpanded ? '▼' : '▲';
 			ollamaCard.toggleClass('atline-ai-agent-expanded', !isExpanded);
 		});
 
@@ -2963,14 +2965,14 @@ class AtLineAISettingTab extends PluginSettingTab {
 		const cliTitleDiv = cliHeader.createDiv('atline-ai-agent-title');
 		cliTitleDiv.createEl('span', { text: 'CLI Paths', cls: 'atline-ai-agent-alias' });
 		const cliExpandIcon = cliHeader.createDiv('atline-ai-expand-icon');
-		cliExpandIcon.innerHTML = '▼';
+		cliExpandIcon.textContent = '▼';
 		const cliContent = cliCard.createDiv('atline-ai-agent-content');
 		cliContent.style.display = 'none';
 
 		cliHeader.addEventListener('click', () => {
 			const isExpanded = cliContent.style.display !== 'none';
 			cliContent.style.display = isExpanded ? 'none' : 'block';
-			cliExpandIcon.innerHTML = isExpanded ? '▼' : '▲';
+			cliExpandIcon.textContent = isExpanded ? '▼' : '▲';
 			cliCard.toggleClass('atline-ai-agent-expanded', !isExpanded);
 		});
 
@@ -3055,14 +3057,14 @@ class AtLineAISettingTab extends PluginSettingTab {
 		const apiTitleDiv = apiHeader.createDiv('atline-ai-agent-title');
 		apiTitleDiv.createEl('span', { text: 'API Keys', cls: 'atline-ai-agent-alias' });
 		const apiExpandIcon = apiHeader.createDiv('atline-ai-expand-icon');
-		apiExpandIcon.innerHTML = '▼';
+		apiExpandIcon.textContent = '▼';
 		const apiContent = apiCard.createDiv('atline-ai-agent-content');
 		apiContent.style.display = 'none';
 
 		apiHeader.addEventListener('click', () => {
 			const isExpanded = apiContent.style.display !== 'none';
 			apiContent.style.display = isExpanded ? 'none' : 'block';
-			apiExpandIcon.innerHTML = isExpanded ? '▼' : '▲';
+			apiExpandIcon.textContent = isExpanded ? '▼' : '▲';
 			apiCard.toggleClass('atline-ai-agent-expanded', !isExpanded);
 		});
 
@@ -3073,7 +3075,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// Anthropic API Key setting with inline test button
 		new Setting(apiContent)
-			.setName('Anthropic API Key')
+			.setName('Anthropic API key')
 			.setDesc('For Claude API access. Get your key from console.anthropic.com')
 			.addText(text => {
 				text.inputEl.type = 'password';
@@ -3144,7 +3146,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// OpenAI API Key setting with inline test button
 		new Setting(apiContent)
-			.setName('OpenAI API Key')
+			.setName('OpenAI API key')
 			.setDesc('For OpenAI API access. Get your key from platform.openai.com')
 			.addText(text => {
 				text.inputEl.type = 'password';
@@ -3214,7 +3216,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// Gemini API Key setting with test button
 		new Setting(apiContent)
-			.setName('Google AI API Key')
+			.setName('Google AI API key')
 			.setDesc('For Gemini API access. Get your key from aistudio.google.com')
 			.addText(text => {
 				text.inputEl.type = 'password';
@@ -3300,20 +3302,41 @@ class AtLineAISettingTab extends PluginSettingTab {
 
 		// Render based on style
 		switch (style) {
-			case 'blockquote':
-				previewSample.innerHTML = `<blockquote style="border-left: 2px solid var(--interactive-accent); padding-left: 1em; margin: 0.5em 0;">${sampleText}</blockquote>`;
+			case 'blockquote': {
+				const bq = previewSample.createEl('blockquote');
+				bq.style.cssText = 'border-left: 2px solid var(--interactive-accent); padding-left: 1em; margin: 0.5em 0;';
+				bq.appendText(sampleText);
 				break;
-			case 'callout':
-				previewSample.innerHTML = `<div style="background: var(--background-secondary); border-left: 3px solid var(--interactive-accent); padding: 1em; margin: 0.5em 0; border-radius: 4px;"><strong>AI Response</strong><br/>${sampleText}</div>`;
+			}
+			case 'callout': {
+				const div = previewSample.createDiv();
+				div.style.cssText = 'background: var(--background-secondary); border-left: 3px solid var(--interactive-accent); padding: 1em; margin: 0.5em 0; border-radius: 4px;';
+				div.createEl('strong', { text: 'AI Response' });
+				div.createEl('br');
+				div.appendText(sampleText);
 				break;
-			case 'plain':
-				previewSample.innerHTML = `<div style="padding: 0.5em 0;"><hr style="margin: 0.5em 0; border: none; border-top: 1px solid var(--background-modifier-border);"/>${sampleText}<hr style="margin: 0.5em 0; border: none; border-top: 1px solid var(--background-modifier-border);"/></div>`;
+			}
+			case 'plain': {
+				const wrap = previewSample.createDiv();
+				wrap.style.cssText = 'padding: 0.5em 0;';
+				const hr1 = wrap.createEl('hr');
+				hr1.style.cssText = 'margin: 0.5em 0; border: none; border-top: 1px solid var(--background-modifier-border);';
+				wrap.appendText(sampleText);
+				const hr2 = wrap.createEl('hr');
+				hr2.style.cssText = 'margin: 0.5em 0; border: none; border-top: 1px solid var(--background-modifier-border);';
 				break;
-			case 'code':
-				previewSample.innerHTML = `<pre style="background: var(--code-background); padding: 1em; margin: 0.5em 0; border-radius: 4px; font-family: var(--font-monospace);"><code>${sampleText}</code></pre>`;
+			}
+			case 'code': {
+				const pre = previewSample.createEl('pre');
+				pre.style.cssText = 'background: var(--code-background); padding: 1em; margin: 0.5em 0; border-radius: 4px; font-family: var(--font-monospace);';
+				pre.createEl('code', { text: sampleText });
 				break;
-			default:
-				previewSample.innerHTML = `<blockquote style="border-left: 2px solid var(--interactive-accent); padding-left: 1em; margin: 0.5em 0;">${sampleText}</blockquote>`;
+			}
+			default: {
+				const bq = previewSample.createEl('blockquote');
+				bq.style.cssText = 'border-left: 2px solid var(--interactive-accent); padding-left: 1em; margin: 0.5em 0;';
+				bq.appendText(sampleText);
+			}
 		}
 	}
 }
