@@ -2,6 +2,10 @@
 
 Ask any LLM questions about your notes inline using custom triggers.
 
+![AtLine AI demo](demo.gif)
+
+> Press **Cmd+Enter** (Mac) or **Ctrl+Enter** (Windows/Linux) to trigger a response.
+
 > **Desktop only.** This plugin uses Node.js APIs and is not available on Obsidian Mobile.
 
 ## Quickstart
@@ -37,10 +41,8 @@ The AI response appears inline below your question.
 
 ### Manual installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/ergesmema/obsidian-atline-ai/releases/latest)
-2. Create a folder at `<your-vault>/.obsidian/plugins/atline-ai/`
-3. Copy the three files into that folder
-4. Enable the plugin in Settings → Community Plugins
+1. Download the [latest release](https://github.com/ergesmema/obsidian-atline-ai/releases/latest) and extract it into your vault's `.obsidian/plugins/` folder
+2. Enable the plugin in Settings → Community Plugins
 
 ## Requirements
 
@@ -100,27 +102,12 @@ Go to **Settings → AtLine AI** to configure:
 ### Configuring agents
 
 Each agent has:
-- **Alias**: The trigger word (e.g., `claude`, `gemini`, `gpt`)
+- **Alias**: The trigger word (e.g., `claude`, `gemini`, `gpt`, or any custom word)
 - **Provider**: Which AI service to use
 - **Connection mode**: CLI or API
 - **Model**: Which model to use (e.g., `claude-sonnet-4-20250514`, `gpt-4o`)
 - **System prompt**: Custom instructions for how the AI should behave
 - **Include linked notes**: Whether to include `[[wikilinked]]` notes as context
-
-## Example
-
-```markdown
-# Book Notes — Thinking, Fast and Slow
-
-Kahneman describes two systems of thinking: System 1 is fast, intuitive,
-and emotional; System 2 is slower, more deliberate, and logical.
-
-@claude What are the key differences between System 1 and System 2?
-
-> System 1 operates automatically and quickly with little effort,
-> while System 2 allocates attention to effortful mental activities.
-> System 1 is prone to biases; System 2 can override them but is lazy.
-```
 
 ## Troubleshooting
 

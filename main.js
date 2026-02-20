@@ -386,7 +386,6 @@ function createAgentAutocomplete(agentsRef) {
 						const emoji = agent.connectionMode === 'api' ? '🔑' : '💻';
 						return {
 							label: `${emoji} @${agent.alias}`,
-							type: 'keyword',
 							apply: `@${agent.alias} `,
 							detail: agent.provider
 						};
