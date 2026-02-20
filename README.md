@@ -4,7 +4,7 @@ Ask any LLM questions about your notes inline using custom triggers.
 
 ![AtLine AI demo](demo.gif)
 
-> Press **Cmd+Enter** (Mac) or **Ctrl+Enter** (Windows/Linux) to trigger a response.
+> Set a hotkey in **Settings → Hotkeys → AtLine AI** to trigger a response (e.g. Cmd+Enter on Mac).
 
 > **Desktop only.** This plugin uses Node.js APIs and is not available on Obsidian Mobile.
 
@@ -14,8 +14,9 @@ Ask any LLM questions about your notes inline using custom triggers.
 2. Choose your connection method:
    - **API mode**: Go to Settings → AtLine AI → API Keys and add your API key (Anthropic, OpenAI, or Google)
    - **CLI mode**: Install the CLI tool (e.g., `npm install -g @anthropic-ai/claude-code`) and authenticate
-3. In any note, type: `@claude What is this note about?`
-4. Press **Cmd+Enter** (Mac) or **Ctrl+Enter** (Windows/Linux)
+3. Set a hotkey: **Settings → Hotkeys** → search "AtLine AI" → assign your preferred shortcut
+4. In any note, type: `@claude What is this note about?`
+5. Press your hotkey
 
 The AI response appears inline below your question.
 
@@ -27,7 +28,7 @@ The AI response appears inline below your question.
 - **Linked notes context**: Automatically include `[[wikilinked]]` notes as context for the AI
 - **Inline responses**: Answers appear directly in your note as blockquotes, callouts, plain text, or code blocks
 - **Customizable agents**: Create multiple agents with different providers and system prompts
-- **Configurable hotkey**: Cmd+Enter, Ctrl+Enter, or just Enter
+- **Configurable hotkey**: assign any shortcut via Settings → Hotkeys
 - Works alongside other typing plugins without conflicts
 
 ## Installation
@@ -74,7 +75,7 @@ API mode requires no CLI installation — just add your API key in settings.
    @gpt Help me rewrite this paragraph
    @plot Draw a bar chart: Q1=120, Q2=95, Q3=140, Q4=200
    ```
-3. Press your configured hotkey (default: **Cmd+Enter** on Mac or **Ctrl+Enter** on Windows/Linux)
+3. Press your configured hotkey (set in Settings → Hotkeys → AtLine AI)
 4. The AI reads your note and responds inline
 
 The plugin searches up to 20 lines above your cursor to find the nearest `@agent` trigger, so you can place your cursor anywhere after the query.
