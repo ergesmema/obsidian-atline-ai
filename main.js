@@ -2703,6 +2703,8 @@ class AtLineAISettingTab extends PluginSettingTab {
 				.setDesc(isPlotAgent ? 'Auto-generated based on Plot Library selection. You can override it here.' : 'Custom instructions for this agent')
 				.addTextArea(text => {
 					text.inputEl.classList.add('atline-ai-system-prompt');
+					// Prevent Obsidian from intercepting keyboard events (backspace, delete, copy, paste, cut)
+					text.inputEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
 					// For @plot agent, show the effective prompt (from library) but allow override
 					const effectivePrompt = isPlotAgent && !agent.systemPrompt && agent.plotLibrary
 						? PLOT_LIBRARY_PROMPTS[agent.plotLibrary] || ''
