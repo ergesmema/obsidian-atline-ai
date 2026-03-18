@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS = {
 	claudeApiKey: '',  // Anthropic API key for direct API access
 	openaiApiKey: '',  // OpenAI API key for direct API access
 	geminiApiKey: '',  // Google AI API key for direct API access
+	openrouterApiKey: '',  // OpenRouter API key for multi-provider access
 	agents: [
 		{
 			alias: 'claude',
@@ -266,6 +267,12 @@ function createAgentPillPlugin(agentsRef) {
 			class: 'agent-pill agent-pill-codex',
 			attributes: {
 				style: 'background-color: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.9em; font-weight: 500;'
+			}
+		}),
+		openrouter: Decoration.mark({
+			class: 'agent-pill agent-pill-openrouter',
+			attributes: {
+				style: 'background-color: #7dd3fc; color: #0c4a6e; padding: 2px 8px; border-radius: 12px; font-size: 0.9em; font-weight: 500;'
 			}
 		}),
 		default: Decoration.mark({
@@ -850,16 +857,17 @@ module.exports = class AtLineAIPlugin extends Plugin {
 
 		// Determine provider and set appropriate strings
 		const provider = agent.provider;
-		const providerName = provider === 'gemini' ? 'Gemini' : (provider === 'ollama' ? 'Ollama' : provider === 'codex' ? 'OpenAI' : 'Claude');
+		const providerName = provider === 'gemini' ? 'Gemini' : (provider === 'ollama' ? 'Ollama' : provider === 'codex' ? 'OpenAI' : provider === 'openrouter' ? 'OpenRouter' : 'Claude');
 
-		// Determine if using API mode (for Claude, OpenAI, or Gemini)
+		// Determine if using API mode (for Claude, OpenAI, Gemini, or OpenRouter)
 		const useClaudeApi = provider === 'claude' && agent.connectionMode === 'api' && this.settings.claudeApiKey;
 		const useOpenaiApi = provider === 'codex' && agent.connectionMode === 'api' && this.settings.openaiApiKey;
 		const useGeminiApi = provider === 'gemini' && agent.connectionMode === 'api' && this.settings.geminiApiKey;
+		const useOpenrouterApi = provider === 'openrouter' && this.settings.openrouterApiKey;
 
 		// Append contextual instruction to system prompt (different for each provider/mode)
 		let markerInstruction = '';
-		if (provider === 'ollama' || useClaudeApi || useOpenaiApi || useGeminiApi) {
+		if (provider === 'ollama' || useClaudeApi || useOpenaiApi || useGeminiApi || useOpenrouterApi) {
 			// Ollama, Claude API, OpenAI API, and Gemini API get file contents directly
 			markerInstruction = '\n\nIMPORTANT: The user\'s question appears at a specific location in the file, marked with \'<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>\'. When they use words like \'this\', \'here\', \'explain this better\', \'what does this mean\', etc., they are referring to the content immediately above this marker. Look for this marker to understand the exact context of what section they\'re asking about.\n\nCRITICAL: ALL file contents (including any referenced files) are ALREADY PROVIDED in the message. DO NOT say you will "read" or "check" files - they are already available. Just answer the question directly using the provided content.';
 		} else {
@@ -907,7 +915,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 			const disableStreaming = agent.disableStreaming || false;
 
 			// Route to direct API if configured (Claude, OpenAI, or Gemini)
-			if (useClaudeApi || useOpenaiApi || useGeminiApi) {
+			if (useClaudeApi || useOpenaiApi || useGeminiApi || useOpenrouterApi) {
 				// Read file contents for API mode (API can't read files like CLI)
 				const { readFile } = require('fs').promises;
 				const fileName = path.basename(absolutePath);
@@ -971,6 +979,8 @@ module.exports = class AtLineAIPlugin extends Plugin {
 					await this.runClaudeApiStreaming(editor, markerId, contextInfo, question, systemPrompt, timeout, responseStyle, model);
 				} else if (useOpenaiApi) {
 					await this.runOpenAIApiStreaming(editor, markerId, contextInfo, question, systemPrompt, timeout, responseStyle, model);
+				} else if (useOpenrouterApi) {
+					await this.runOpenRouterApiStreaming(editor, markerId, contextInfo, question, systemPrompt, timeout, responseStyle, model);
 				} else {
 					await this.runGeminiApiStreaming(editor, markerId, contextInfo, question, systemPrompt, timeout, responseStyle, model);
 				}
@@ -1127,7 +1137,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 	 * @returns {Promise<void>}
 	 */
 	async testConnection(provider, agent) {
-		const providerName = provider === 'gemini' ? 'Gemini' : (provider === 'ollama' ? 'Ollama' : provider === 'codex' ? 'OpenAI' : 'Claude');
+		const providerName = provider === 'gemini' ? 'Gemini' : (provider === 'ollama' ? 'Ollama' : provider === 'codex' ? 'OpenAI' : provider === 'openrouter' ? 'OpenRouter' : 'Claude');
 		new Notice(`Testing ${providerName} connection...`);
 
 		try {
@@ -2276,6 +2286,150 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		});
 	}
 
+	/**
+	 * Runs a query using the OpenRouter API directly with streaming.
+	 * OpenRouter uses the OpenAI-compatible chat completions format.
+	 */
+	async runOpenRouterApiStreaming(editor, markerId, contextInfo, question, systemPrompt = '', timeout = 120000, responseStyle = 'blockquote', model = null) {
+		return new Promise((resolve, reject) => {
+			const https = require('https');
+
+			// Build messages array (OpenAI-compatible format)
+			const messages = [];
+			if (systemPrompt) {
+				messages.push({ role: 'system', content: systemPrompt });
+			}
+			messages.push({ role: 'user', content: `${contextInfo}\n\nQuestion: ${question}` });
+
+			const requestData = JSON.stringify({
+				model: model || 'anthropic/claude-sonnet-4',
+				messages: messages,
+				stream: true
+			});
+
+			const options = {
+				hostname: 'openrouter.ai',
+				path: '/api/v1/chat/completions',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${this.settings.openrouterApiKey}`,
+					'Content-Length': Buffer.byteLength(requestData)
+				}
+			};
+
+			let accumulatedText = '';
+			let buffer = '';
+			let lastFormattedText = '';
+			let batchUpdateInterval = null;
+			let killTimer;
+
+			const req = https.request(options, (res) => {
+				// Check for error status codes
+				if (res.statusCode !== 200) {
+					let errorBody = '';
+					res.on('data', chunk => errorBody += chunk.toString());
+					res.on('end', () => {
+						clearTimeout(killTimer);
+						let errorMsg = `OpenRouter API error (${res.statusCode})`;
+						try {
+							const errorJson = JSON.parse(errorBody);
+							errorMsg = errorJson.error?.message || errorMsg;
+						} catch (e) {
+							errorMsg = errorBody || errorMsg;
+						}
+						reject(new Error(errorMsg));
+					});
+					return;
+				}
+
+				// Batch editor updates every 100ms for performance
+				batchUpdateInterval = setInterval(() => {
+					if (accumulatedText && accumulatedText !== lastFormattedText) {
+						const response = this.formatAsBlockquote(accumulatedText, responseStyle, markerId);
+						this.updateStreamingMarker(editor, markerId, response, responseStyle);
+						lastFormattedText = accumulatedText;
+					}
+				}, 100);
+
+				res.on('data', (chunk) => {
+					buffer += chunk.toString();
+
+					// Parse SSE format: "data: json\n\n"
+					const lines = buffer.split('\n');
+					buffer = '';
+
+					for (const line of lines) {
+						if (line.startsWith('data: ')) {
+							const data = line.slice(6);
+
+							if (data === '[DONE]') {
+								clearTimeout(killTimer);
+								if (batchUpdateInterval) clearInterval(batchUpdateInterval);
+
+								if (accumulatedText) {
+									const response = this.formatAsBlockquote(accumulatedText, responseStyle);
+									this.updateStreamingMarker(editor, markerId, response, responseStyle);
+								}
+
+								resolve(accumulatedText);
+								return;
+							}
+
+							try {
+								const parsed = JSON.parse(data);
+								const content = parsed.choices?.[0]?.delta?.content;
+								if (content) {
+									accumulatedText += content;
+								}
+							} catch (e) {
+								buffer = line;
+							}
+						} else if (line.trim() && !line.startsWith(':')) {
+							buffer += line + '\n';
+						}
+					}
+				});
+
+				res.on('end', () => {
+					clearTimeout(killTimer);
+					if (batchUpdateInterval) clearInterval(batchUpdateInterval);
+
+					if (accumulatedText) {
+						const response = this.formatAsBlockquote(accumulatedText, responseStyle);
+						this.updateStreamingMarker(editor, markerId, response, responseStyle);
+					}
+
+					resolve(accumulatedText);
+				});
+
+				res.on('error', (error) => {
+					clearTimeout(killTimer);
+					if (batchUpdateInterval) clearInterval(batchUpdateInterval);
+					reject(error);
+				});
+			});
+
+			req.on('error', (error) => {
+				clearTimeout(killTimer);
+				if (batchUpdateInterval) clearInterval(batchUpdateInterval);
+				reject(new Error(`OpenRouter API connection error: ${error.message}`));
+			});
+
+			// Set timeout
+			killTimer = setTimeout(() => {
+				req.destroy();
+				if (batchUpdateInterval) clearInterval(batchUpdateInterval);
+				const timeoutMsg = `OpenRouter API request timed out after ${timeout}ms. Check your internet connection or increase timeout in Settings → AtLine AI.`;
+				reject(new Error(timeoutMsg));
+			}, timeout);
+
+			// Send the request
+			req.write(requestData);
+			req.end();
+		});
+	}
+
 	formatAsBlockquote(text, styleOverride = null, markerId = null) {
 		// Memoization: return cached result if text, style, and markerId unchanged (optimization #6)
 		const style = styleOverride || this.settings.responseStyle || 'blockquote';
@@ -2488,7 +2642,7 @@ class AtLineAISettingTab extends PluginSettingTab {
 			const header = agentCard.createDiv('atline-ai-agent-header-clickable');
 			const titleDiv = header.createDiv('atline-ai-agent-title');
 			const aliasSpan = titleDiv.createEl('span', { text: `@${agent.alias}`, cls: 'atline-ai-agent-alias' });
-			const providerDisplayName = agent.provider === 'codex' ? 'OpenAI' : agent.provider;
+			const providerDisplayName = agent.provider === 'codex' ? 'OpenAI' : agent.provider === 'openrouter' ? 'OpenRouter' : agent.provider;
 			const providerBadge = titleDiv.createEl('span', {
 				text: providerDisplayName,
 				cls: `atline-ai-provider-badge atline-ai-provider-${agent.provider}`
@@ -2568,11 +2722,12 @@ class AtLineAISettingTab extends PluginSettingTab {
 					.addOption('gemini', 'Gemini')
 					.addOption('ollama', 'Ollama')
 					.addOption('codex', 'OpenAI')
+					.addOption('openrouter', 'OpenRouter')
 					.setValue(agent.provider)
 					.onChange(async (value) => {
 						this.plugin.settings.agents[index].provider = value;
 						// Update badge immediately (show 'openai' instead of 'codex')
-						providerBadge.textContent = value === 'codex' ? 'OpenAI' : value;
+						providerBadge.textContent = value === 'codex' ? 'OpenAI' : value === 'openrouter' ? 'OpenRouter' : value;
 						providerBadge.className = `atline-ai-provider-badge atline-ai-provider-${value}`;
 						await this.plugin.saveSettings();
 						// Re-render to show/hide connection mode
@@ -2663,6 +2818,20 @@ class AtLineAISettingTab extends PluginSettingTab {
 				}
 			}
 
+			// OpenRouter provider (API only, no CLI)
+			if (agent.provider === 'openrouter') {
+				// Show warning if no key configured
+				if (!this.plugin.settings.openrouterApiKey) {
+					const warningEl = content.createEl('div', {
+						cls: 'setting-item-description',
+						attr: { style: 'color: var(--text-warning); margin-top: -10px; margin-bottom: 10px; padding-left: 18px;' }
+					});
+					warningEl.appendText('⚠️ API key not configured. Add your OpenRouter API key in the ');
+				warningEl.createEl('strong', { text: 'API Keys' });
+				warningEl.appendText(' section below.');
+				}
+			}
+
 			// Model setting - show appropriate default based on provider and connection mode
 			const getDefaultModel = (provider, connectionMode) => {
 				if (provider === 'claude') {
@@ -2673,6 +2842,8 @@ class AtLineAISettingTab extends PluginSettingTab {
 					return 'llama2';
 				} else if (provider === 'gemini') {
 					return connectionMode === 'api' ? 'gemini-2.0-flash' : '';
+				} else if (provider === 'openrouter') {
+					return 'anthropic/claude-sonnet-4';
 				}
 				return '';
 			};
@@ -3310,6 +3481,76 @@ class AtLineAISettingTab extends PluginSettingTab {
 						});
 
 						new Notice('✓ Gemini API key is valid!', 3000);
+					} catch (error) {
+						new Notice(`✗ API test failed: ${error.message}`, 5000);
+					} finally {
+						button.setButtonText('Test');
+						button.setDisabled(false);
+					}
+				}));
+
+		// OpenRouter API Key setting with test button
+		new Setting(apiContent)
+			.setName('OpenRouter API key')
+			.setDesc('For OpenRouter API access. Get your key from openrouter.ai/keys')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.inputEl.style.width = '250px';
+				text.setPlaceholder('sk-or-...')
+					.setValue(this.plugin.settings.openrouterApiKey || '')
+					.onChange(async (value) => {
+						this.plugin.settings.openrouterApiKey = value.trim();
+						await this.plugin.saveSettings();
+					});
+			})
+			.addButton(button => button
+				.setButtonText('Test')
+				.onClick(async () => {
+					if (!this.plugin.settings.openrouterApiKey) {
+						new Notice('Please enter an API key first');
+						return;
+					}
+					button.setButtonText('Testing...');
+					button.setDisabled(true);
+					try {
+						const https = require('https');
+						const requestData = JSON.stringify({
+							model: 'anthropic/claude-sonnet-4',
+							max_tokens: 10,
+							messages: [{ role: 'user', content: 'Say "OK"' }]
+						});
+
+						const result = await new Promise((resolve, reject) => {
+							const req = https.request({
+								hostname: 'openrouter.ai',
+								path: '/api/v1/chat/completions',
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json',
+									'Authorization': `Bearer ${this.plugin.settings.openrouterApiKey}`
+								}
+							}, (res) => {
+								let data = '';
+								res.on('data', chunk => data += chunk);
+								res.on('end', () => {
+									if (res.statusCode === 200) {
+										resolve('success');
+									} else {
+										try {
+											const error = JSON.parse(data);
+											reject(new Error(error.error?.message || `HTTP ${res.statusCode}`));
+										} catch {
+											reject(new Error(`HTTP ${res.statusCode}`));
+										}
+									}
+								});
+							});
+							req.on('error', reject);
+							req.write(requestData);
+							req.end();
+						});
+
+						new Notice('✓ OpenRouter API key is valid!', 3000);
 					} catch (error) {
 						new Notice(`✗ API test failed: ${error.message}`, 5000);
 					} finally {
