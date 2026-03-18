@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
 			provider: 'claude',
 			connectionMode: 'cli',    // 'cli' or 'api' - how to connect to Claude
 			systemPrompt: 'You are helping the user understand their notes in Obsidian. CRITICAL: Give EXTREMELY brief answers - 1-2 sentences MAX. No elaboration, no examples, no explanations unless explicitly requested with keywords like \'detailed\', \'explain\', \'elaborate\', \'examples\'. Be as terse as possible. Answer the question directly and stop.',
+			includeCurrentNote: true,  // Include current note content as context
 			includeAllWikilinks: false,
 			deleteQueryAfterResponse: false, // Remove @agent query line after response is shown
 			timeout: undefined,        // Optional: Override global timeout (ms)
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS = {
 			provider: 'gemini',
 			connectionMode: 'cli',    // 'cli' or 'api' - how to connect to Gemini
 			systemPrompt: 'You are helping the user understand their notes in Obsidian. CRITICAL: Give EXTREMELY brief answers - 1-2 sentences MAX. No elaboration, no examples, no explanations unless explicitly requested with keywords like \'detailed\', \'explain\', \'elaborate\', \'examples\'. Be as terse as possible. Answer the question directly and stop.',
+			includeCurrentNote: true,
 			includeAllWikilinks: false,
 			deleteQueryAfterResponse: false,
 			timeout: undefined,
@@ -51,6 +53,7 @@ const DEFAULT_SETTINGS = {
 			alias: 'ollama',
 			provider: 'ollama',
 			systemPrompt: 'You are helping the user understand their notes in Obsidian. CRITICAL: Give EXTREMELY brief answers - 1-2 sentences MAX. No elaboration, no examples, no explanations unless explicitly requested with keywords like \'detailed\', \'explain\', \'elaborate\', \'examples\'. Be as terse as possible. Answer the question directly and stop.',
+			includeCurrentNote: true,
 			includeAllWikilinks: false,
 			deleteQueryAfterResponse: false,
 			timeout: undefined,
@@ -62,6 +65,7 @@ const DEFAULT_SETTINGS = {
 			provider: 'codex',
 			connectionMode: 'cli',    // 'cli' or 'api' - how to connect to OpenAI
 			systemPrompt: 'You are helping the user understand their notes in Obsidian. CRITICAL: Give EXTREMELY brief answers - 1-2 sentences MAX. No elaboration, no examples, no explanations unless explicitly requested with keywords like \'detailed\', \'explain\', \'elaborate\', \'examples\'. Be as terse as possible. Answer the question directly and stop.',
+			includeCurrentNote: true,
 			includeAllWikilinks: false,
 			deleteQueryAfterResponse: false,
 			timeout: undefined,
@@ -74,6 +78,7 @@ const DEFAULT_SETTINGS = {
 			connectionMode: 'cli',    // 'cli' or 'api' - how to connect to Claude
 			plotLibrary: 'charts', // 'charts', 'desmos', 'functionplot'
 			systemPrompt: '', // Auto-generated based on plotLibrary
+			includeCurrentNote: true,
 			includeAllWikilinks: false,
 			deleteQueryAfterResponse: false,
 			timeout: 120000,
@@ -906,20 +911,23 @@ module.exports = class AtLineAIPlugin extends Plugin {
 				// Read file contents for API mode (API can't read files like CLI)
 				const { readFile } = require('fs').promises;
 				const fileName = path.basename(absolutePath);
+				const includeCurrentNote = agent.includeCurrentNote !== false;
 
 				let currentFileContents = '';
-				try {
-					currentFileContents = await readFile(absolutePath, 'utf-8');
-				} catch (error) {
-					throw new Error(`Could not read file: ${absolutePath}. Error: ${error.message}`);
-				}
+				if (includeCurrentNote) {
+					try {
+						currentFileContents = await readFile(absolutePath, 'utf-8');
+					} catch (error) {
+						throw new Error(`Could not read file: ${absolutePath}. Error: ${error.message}`);
+					}
 
-				// Insert marker at the line where the query appears
-				const fileLines = currentFileContents.split('\n');
-				if (cursor.line >= 0 && cursor.line < fileLines.length) {
-					fileLines.splice(cursor.line + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+					// Insert marker at the line where the query appears
+					const fileLines = currentFileContents.split('\n');
+					if (cursor.line >= 0 && cursor.line < fileLines.length) {
+						fileLines.splice(cursor.line + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+					}
+					currentFileContents = fileLines.join('\n');
 				}
-				currentFileContents = fileLines.join('\n');
 
 				// Extract and read wikilinked files
 				const wikilinks = [];
@@ -954,7 +962,9 @@ module.exports = class AtLineAIPlugin extends Plugin {
 					}
 				}
 
-				const contextInfo = `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`;
+				const contextInfo = includeCurrentNote
+					? `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`
+					: (referencedFilesInfo ? `REFERENCED FILES:\n\n${referencedFilesInfo}` : '');
 
 				// Call the appropriate API
 				if (useClaudeApi) {
@@ -966,7 +976,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 				}
 			} else {
 				// Use CLI streaming (existing path)
-				await this.runCLIStreaming(editor, markerId, absolutePath, question, null, cursor.line, provider, systemPrompt, agent.includeAllWikilinks || false, timeout, responseStyle, model, disableStreaming);
+				await this.runCLIStreaming(editor, markerId, absolutePath, question, null, cursor.line, provider, systemPrompt, agent.includeAllWikilinks || false, timeout, responseStyle, model, disableStreaming, agent.includeCurrentNote !== false);
 			}
 			new Notice(`${providerName} responded!`);
 
@@ -1340,9 +1350,10 @@ module.exports = class AtLineAIPlugin extends Plugin {
 	 * @param {string} responseStyle - Response style: 'blockquote', 'callout', 'plain', or 'code'
 	 * @param {string} model - Optional model name to use for the AI provider
 	 * @param {boolean} disableStreaming - If true, only show final result (no live updates)
+	 * @param {boolean} includeCurrentNote - Whether to include the current note content as context
 	 * @returns {Promise<string>} The accumulated response text from the AI
 	 */
-	async runCLIStreaming(editor, markerId, filePath, question, sessionId, lineNumber, provider = 'claude', systemPrompt = '', includeAllWikilinks = false, timeout = 120000, responseStyle = 'blockquote', model = null, disableStreaming = false) {
+	async runCLIStreaming(editor, markerId, filePath, question, sessionId, lineNumber, provider = 'claude', systemPrompt = '', includeAllWikilinks = false, timeout = 120000, responseStyle = 'blockquote', model = null, disableStreaming = false, includeCurrentNote = true) {
 		const fileName = path.basename(filePath);
 		const { readFile } = require('fs').promises;
 
@@ -1350,19 +1361,21 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		if (provider === 'ollama') {
 			// Read the current file contents for Ollama
 			let currentFileContents = '';
-			try {
-				currentFileContents = await readFile(filePath, 'utf-8');
-			} catch (error) {
-				console.error('Error reading file:', error);
-				throw new Error(`Could not read file: ${filePath}. Check that the file exists and you have read permissions. Error: ${error.message}`);
-			}
+			if (includeCurrentNote) {
+				try {
+					currentFileContents = await readFile(filePath, 'utf-8');
+				} catch (error) {
+					console.error('Error reading file:', error);
+					throw new Error(`Could not read file: ${filePath}. Check that the file exists and you have read permissions. Error: ${error.message}`);
+				}
 
-			// Insert marker at the line where the query appears
-			const fileLines = currentFileContents.split('\n');
-			if (lineNumber >= 0 && lineNumber < fileLines.length) {
-				fileLines.splice(lineNumber + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+				// Insert marker at the line where the query appears
+				const fileLines = currentFileContents.split('\n');
+				if (lineNumber >= 0 && lineNumber < fileLines.length) {
+					fileLines.splice(lineNumber + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+				}
+				currentFileContents = fileLines.join('\n');
 			}
-			currentFileContents = fileLines.join('\n');
 
 			// Extract wikilinks and read their contents in parallel
 			const linkPromises = [];
@@ -1406,7 +1419,9 @@ module.exports = class AtLineAIPlugin extends Plugin {
 				}
 			}
 
-			const contextInfo = `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`;
+			const contextInfo = includeCurrentNote
+				? `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`
+				: (referencedFilesInfo ? `REFERENCED FILES:\n\n${referencedFilesInfo}` : '');
 			return this.runOllamaStreaming(editor, markerId, contextInfo, question, systemPrompt, timeout, responseStyle, model);
 		}
 
@@ -1414,19 +1429,21 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		if (provider === 'codex') {
 			// Read the current file contents for Codex
 			let currentFileContents = '';
-			try {
-				currentFileContents = await readFile(filePath, 'utf-8');
-			} catch (error) {
-				console.error('Error reading file:', error);
-				throw new Error(`Could not read file: ${filePath}. Error: ${error.message}`);
-			}
+			if (includeCurrentNote) {
+				try {
+					currentFileContents = await readFile(filePath, 'utf-8');
+				} catch (error) {
+					console.error('Error reading file:', error);
+					throw new Error(`Could not read file: ${filePath}. Error: ${error.message}`);
+				}
 
-			// Insert marker at the line where the query appears
-			const fileLines = currentFileContents.split('\n');
-			if (lineNumber >= 0 && lineNumber < fileLines.length) {
-				fileLines.splice(lineNumber + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+				// Insert marker at the line where the query appears
+				const fileLines = currentFileContents.split('\n');
+				if (lineNumber >= 0 && lineNumber < fileLines.length) {
+					fileLines.splice(lineNumber + 1, 0, '<<< USER IS ASKING THEIR QUESTION FROM THIS LINE >>>');
+				}
+				currentFileContents = fileLines.join('\n');
 			}
-			currentFileContents = fileLines.join('\n');
 
 			// Extract wikilinks and read their contents in parallel
 			const wikilinks = [];
@@ -1466,10 +1483,12 @@ module.exports = class AtLineAIPlugin extends Plugin {
 				}
 			}
 
-			const contextInfo = `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`;
+			const contextInfo = includeCurrentNote
+				? `CURRENT FILE: ${fileName}\n\n${currentFileContents}${referencedFilesInfo}`
+				: (referencedFilesInfo ? `REFERENCED FILES:\n\n${referencedFilesInfo}` : '');
 			const codexPrompt = systemPrompt
-				? `${systemPrompt}\n\n${contextInfo}\n\nQuestion: ${question}`
-				: `${contextInfo}\n\nQuestion: ${question}`;
+				? (contextInfo ? `${systemPrompt}\n\n${contextInfo}\n\nQuestion: ${question}` : `${systemPrompt}\n\nQuestion: ${question}`)
+				: (contextInfo ? `${contextInfo}\n\nQuestion: ${question}` : question);
 
 			const vaultPath = this.app.vault.adapter.basePath;
 			const config = this.buildCodexConfig(codexPrompt, '', vaultPath, model);
@@ -1509,9 +1528,12 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		}
 
 		// Build context with file paths (not contents)
-		let contextPrompt = `The user is working in the file: ${filePath}\n`;
-		if (lineNumber >= 0) {
-			contextPrompt += `They are asking their question from line ${lineNumber + 1}.\n`;
+		let contextPrompt = '';
+		if (includeCurrentNote) {
+			contextPrompt = `The user is working in the file: ${filePath}\n`;
+			if (lineNumber >= 0) {
+				contextPrompt += `They are asking their question from line ${lineNumber + 1}.\n`;
+			}
 		}
 		if (wikilinkedPaths.length > 0) {
 			contextPrompt += `\nThey also referenced these files:\n`;
@@ -2719,6 +2741,17 @@ class AtLineAISettingTab extends PluginSettingTab {
 							this.plugin.saveSettings();
 						});
 				});
+
+			// Include Current Note toggle
+			new Setting(content)
+				.setName('Include current note')
+				.setDesc('Send the current note content as context to the AI. When off, the AI only receives your question.')
+				.addToggle(toggle => toggle
+					.setValue(agent.includeCurrentNote !== false)
+					.onChange(async (value) => {
+						this.plugin.settings.agents[index].includeCurrentNote = value;
+						await this.plugin.saveSettings();
+					}));
 
 			// Include All Wikilinks toggle
 			new Setting(content)
