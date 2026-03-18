@@ -1141,7 +1141,48 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		new Notice(`Testing ${providerName} connection...`);
 
 		try {
-			if (provider === 'ollama') {
+			if (provider === 'openrouter') {
+				// Test OpenRouter API
+				if (!this.settings.openrouterApiKey) {
+					throw new Error('OpenRouter API key not configured. Add it in Settings → AtLine AI → API Keys.');
+				}
+				const https = require('https');
+				const requestData = JSON.stringify({
+					model: agent.model || 'anthropic/claude-sonnet-4',
+					max_tokens: 10,
+					messages: [{ role: 'user', content: 'Say "OK"' }]
+				});
+				await new Promise((resolve, reject) => {
+					const req = https.request({
+						hostname: 'openrouter.ai',
+						path: '/api/v1/chat/completions',
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'Authorization': `Bearer ${this.settings.openrouterApiKey}`
+						}
+					}, (res) => {
+						let data = '';
+						res.on('data', chunk => data += chunk);
+						res.on('end', () => {
+							if (res.statusCode === 200) {
+								resolve();
+							} else {
+								try {
+									const error = JSON.parse(data);
+									reject(new Error(error.error?.message || `HTTP ${res.statusCode}`));
+								} catch {
+									reject(new Error(`HTTP ${res.statusCode}`));
+								}
+							}
+						});
+					});
+					req.on('error', reject);
+					req.write(requestData);
+					req.end();
+				});
+				new Notice(`✓ ${providerName} connected successfully!`, 3000);
+			} else if (provider === 'ollama') {
 				// Test Ollama HTTP endpoint
 				const response = await fetch(`${this.settings.ollamaBaseUrl}/api/generate`, {
 					method: 'POST',
