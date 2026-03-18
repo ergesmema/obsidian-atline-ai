@@ -89,6 +89,12 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.atline-ai-provider-openrouter {
+    background: rgba(125, 211, 252, 0.15);
+    color: #7dd3fc;
+    border: 1px solid rgba(125, 211, 252, 0.3);
+}
+
 .atline-ai-system-prompt {
     width: 100% !important;
     min-height: 120px !important;
