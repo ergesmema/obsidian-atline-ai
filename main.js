@@ -685,6 +685,36 @@ module.exports = class AtLineAIPlugin extends Plugin {
 		}
 		// Auto-detect CLI paths if still using defaults
 		await this.autoDetectCliPaths();
+		// Resolve user's full shell PATH so spawned processes see the same tools as terminal
+		await this.resolveShellPath();
+	}
+
+	/**
+	 * Resolves the user's full shell PATH by running their login shell.
+	 * Stores it in this.shellPath for use in all spawn calls.
+	 */
+	async resolveShellPath() {
+		return new Promise((resolve) => {
+			const shell = process.env.SHELL || '/bin/bash';
+			execFile(shell, ['-ilc', 'echo $PATH'], {
+				timeout: 5000,
+				env: { ...process.env, HOME: os.homedir() }
+			}, (error, stdout) => {
+				if (!error && stdout && stdout.trim()) {
+					this.shellPath = stdout.trim();
+				} else {
+					this.shellPath = process.env.PATH || '';
+				}
+				resolve();
+			});
+		});
+	}
+
+	/**
+	 * Returns env object with the resolved shell PATH.
+	 */
+	getSpawnEnv() {
+		return { ...process.env, HOME: process.env.HOME, PATH: this.shellPath || process.env.PATH };
 	}
 
 	/**
@@ -1227,7 +1257,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 						cwd: config.cwd,
 						maxBuffer: 1024 * 1024, // 1MB for test
 						timeout: 30000, // 30 second timeout
-						env: { ...process.env, HOME: process.env.HOME }
+						env: this.getSpawnEnv()
 					}
 				);
 
@@ -1308,7 +1338,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 			setImmediate(() => {
 				const child = spawn(nodePath, [cliPath, ...cliArgs], {
 					cwd: cwd,
-					env: { ...process.env, HOME: process.env.HOME },
+					env: this.getSpawnEnv(),
 					stdio: ['pipe', 'pipe', 'pipe']
 				});
 
@@ -1617,7 +1647,7 @@ module.exports = class AtLineAIPlugin extends Plugin {
 			setImmediate(() => {
 				const child = spawn(spawnCmd, spawnArgs, {
 					cwd: cwd,
-					env: { ...process.env, HOME: process.env.HOME },
+					env: { ...process.env, HOME: process.env.HOME, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin` },
 					stdio: ['pipe', 'pipe', 'pipe']
 				});
 
